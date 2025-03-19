@@ -1,0 +1,114 @@
+use crate::activity_notifications::handle_activity_notification;
+use crate::model::events::CommunityEventInternal;
+use crate::{mutate_state, read_state, run_regular_jobs, RuntimeState};
+use candid::Principal;
+use canister_api_macros::update;
+use canister_tracing_macros::trace;
+use community_canister::enable_invite_code::{Response::*, *};
+use community_canister::reset_invite_code;
+use rand::rngs::StdRng;
+use rand::{RngCore, SeedableRng};
+use types::{GroupInviteCodeChange, GroupInviteCodeChanged, Timestamped};
+use utils::canister;
+
+#[update(msgpack = true)]
+#[trace]
+async fn reset_invite_code(_args: reset_invite_code::Args) -> reset_invite_code::Response {
+    run_regular_jobs();
+
+    let initial_state = match read_state(prepare) {
+        Ok(c) => c,
+        Err(response) => return response,
+    };
+
+    let code = generate_code().await;
+
+    mutate_state(|state| {
+        let now = state.env.now();
+        state.data.invite_code = Timestamped::new(Some(code), now);
+        state.data.invite_code_enabled = Timestamped::new(true, now);
+        record_event(initial_state.caller, GroupInviteCodeChange::Reset, state);
+    });
+
+    Success(SuccessResult { code })
+}
+
+#[update(candid = true, msgpack = true)]
+#[trace]
+async fn enable_invite_code(_args: Args) -> Response {
+    run_regular_jobs();
+
+    let initial_state = match read_state(prepare) {
+        Ok(c) => c,
+        Err(response) => return response,
+    };
+
+    let code = match initial_state.code {
+        Some(c) => c,
+        None => generate_code().await,
+    };
+
+    if !initial_state.enabled {
+        mutate_state(|state| {
+            let now = state.env.now();
+            state.data.invite_code = Timestamped::new(Some(code), now);
+            state.data.invite_code_enabled = Timestamped::new(true, now);
+            record_event(initial_state.caller, GroupInviteCodeChange::Enabled, state);
+        });
+    }
+
+    Success(SuccessResult { code })
+}
+
+async fn generate_code() -> u64 {
+    let seed = canister::get_random_seed().await;
+    let mut rng = StdRng::from_seed(seed);
+    rng.next_u64()
+}
+
+fn record_event(caller: Principal, change: GroupInviteCodeChange, state: &mut RuntimeState) {
+    let now = state.env.now();
+
+    if let Some(participant) = state.data.members.get(caller) {
+        state.data.events.push_event(
+            CommunityEventInternal::InviteCodeChanged(Box::new(GroupInviteCodeChanged {
+                change,
+                changed_by: participant.user_id,
+            })),
+            now,
+        );
+
+        handle_activity_notification(state);
+    }
+}
+
+struct PrepareResult {
+    caller: Principal,
+    code: Option<u64>,
+    enabled: bool,
+}
+
+fn prepare(state: &RuntimeState) -> Result<PrepareResult, Response> {
+    if state.data.is_frozen() {
+        return Err(CommunityFrozen);
+    }
+
+    let caller = state.env.caller();
+    if let Some(member) = state.data.members.get(caller) {
+        if member.suspended().value {
+            return Err(UserSuspended);
+        } else if member.lapsed().value {
+            return Err(UserLapsed);
+        }
+
+        if member.role().can_invite_users(&state.data.permissions) {
+            return Ok(PrepareResult {
+                caller,
+                code: state.data.invite_code.value,
+                enabled: state.data.invite_code_enabled.value,
+            });
+        }
+    }
+
+    Err(NotAuthorized)
+}

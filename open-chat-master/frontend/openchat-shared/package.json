@@ -1,0 +1,40 @@
+{
+    "name": "openchat-shared",
+    "version": "1.0.0",
+    "description": "Typescript library defining the OpenChat domain",
+    "main": "lib/index.js",
+    "scripts": {
+        "build": "npm run clean && tsc",
+        "build:docker": "npm run build",
+        "dev": "npm run clean && tsc -w",
+        "wait": "npm run clean && wait-on lib/index.js",
+        "clean": "rm -rf lib",
+        "typecheck": "tsc --noEmit",
+        "typecheck:watch": "tsc --noEmit -w",
+        "test": "vitest --run",
+        "test:watch": "vitest",
+        "lint": "eslint ./src --fix"
+    },
+    "author": "julian.jelfs@gmail.com",
+    "dependencies": {
+        "@dfinity/agent": "^2.2.0",
+        "@dfinity/auth-client": "^2.2.0",
+        "@dfinity/candid": "^2.2.0",
+        "@dfinity/identity": "^2.2.0",
+        "@dfinity/principal": "^2.2.0",
+        "drange": "^2.0.1",
+        "rollbar": "^2.26.2"
+    },
+    "devDependencies": {
+        "@testing-library/jest-dom": "^6.0.0",
+        "@types/identicon.js": "^2.3.1",
+        "@types/jest": "^29.5.3",
+        "@typescript-eslint/eslint-plugin": "^6.4.0",
+        "@typescript-eslint/parser": "^6.4.0",
+        "eslint-config-prettier": "^9.0.0",
+        "eslint-plugin-prettier": "^5.0.0",
+        "typescript": "=5.4.2",
+        "vitest": "^2.1.9",
+        "wait-on": "^7.0.1"
+    }
+}
