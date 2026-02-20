@@ -60,7 +60,7 @@
         "typescript": "=5.4.2",
         "url": "^0.11.1",
         "util": "0.12.5",
-        "vite": "^6.0.11",
+        "vite": "^7.3.1",
         "vite-plugin-html": "^3.2.2"
     },
     "dependencies": {
@@ -73,7 +73,7 @@
         "@fingerprintjs/botd": "^1.9.1",
         "@fortawesome/free-solid-svg-icons": "^6.4.2",
         "@memefighter/maker-core": "^0.0.17",
-        "@metamask/sdk": "^0.28.4",
+        "@metamask/sdk": "^0.34.0",
         "@solana/wallet-adapter-wallets": "^0.19.32",
         "@solana/web3.js": "^1.91.8",
         "@wagmi/chains": "^1.8.0",
